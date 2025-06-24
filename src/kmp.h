@@ -2910,7 +2910,28 @@ typedef struct kmp_teams_size {
   kmp_int32 nteams; // number of teams in a league
   kmp_int32 nth; // number of threads in each team of the league
 } kmp_teams_size_t;
+/*
+  Malleability elements
+*/
+  #define LIBOMP_MALLEABLE
+  extern int initialize_malleability_structures(void);
+  /* malleability: loop end? */
+  extern volatile int finalize;
+  /* malleability: delegate thread id for schedule */
+  extern volatile int delegate_id;
+  /* malleability: array of available threads */
+  extern volatile int* available;
+  /* Num threads to arrive at the barrier */
+  extern volatile int to_be_completed;
+  /* malleability: conditional variables */
+  extern pthread_mutex_t delegate_lock;
+  extern pthread_mutex_t* mutex_work;
+  extern pthread_cond_t* cond_work;
 
+#ifdef LIBOMP_MALLEABLE
+#include "schedctl.h"
+extern schedctl_t* master_thread_schedctl;
+#endif
 // This struct stores a thread that acts as a "root" for a contention
 // group. Contention groups are rooted at kmp_root threads, but also at
 // each primary thread of each team created in the teams construct.

@@ -6129,14 +6129,24 @@ static void __kmp_aux_env_initialize(kmp_env_blk_t *block) {
     ompc_set_dynamic(__kmp_global.g.g_dynamic);
   }
 }
+/*
+Malleability initialization function
+*/
+int initialize_malleability_structures(void){
+  printf("Init malleability\n");
 
+  return 0;
+}
 void __kmp_env_initialize(char const *string) {
 
   kmp_env_blk_t block;
   int i;
 
   __kmp_stg_init();
-
+  #ifdef LIBOMP_MALLEABLE
+    if(initialize_malleability_structures())
+      exit(1);
+  #endif
   // Hack!!!
   if (string == NULL) {
     // __kmp_max_nth = __kmp_sys_max_nth;

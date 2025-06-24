@@ -6742,7 +6742,6 @@ char *temp_reg_status_file_name = nullptr;
 #endif
 
 void __kmp_register_library_startup(void) {
-
   char *name = __kmp_reg_status_name(); // Name of the environment variable.
   int done = 0;
   union {
