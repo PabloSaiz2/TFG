@@ -2913,6 +2913,7 @@ typedef struct kmp_teams_size {
 /*
   Malleability elements
 */
+  //#define MAX_NUM_HILOS 10
   #define LIBOMP_MALLEABLE
   extern int initialize_malleability_structures(void);
   /* malleability: loop end? */

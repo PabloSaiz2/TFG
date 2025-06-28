@@ -34,7 +34,30 @@
 #if OMPT_SUPPORT
 #include "ompt-specific.h"
 #endif
+/*
+ Variables y funciones de maleabilidad
+*/
+volatile int finalize = 0;
+volatile int delegate_id = 0;
+volatile int* available = NULL;
+volatile int to_be_completed = 0;
 
+static void init_malleability(void){
+  finalize = 0;
+  delegate_id = 0;
+  to_be_completed = 0;
+  int ind =0;
+  available = (int*)malloc(sizeof(int)*num_hilos);
+  for(ind=0;ind<hilos_iniciales;++ind){
+    available[ind] = 1;
+  }
+  for(ind = hilos_iniciales;ind<num_hilos;++ind){
+    available[ind] = 0;
+  }
+}
+static void release_malleability(void){
+  free((void*)available);
+}
 /* ------------------------------------------------------------------------ */
 /* ------------------------------------------------------------------------ */
 
@@ -969,7 +992,8 @@ __kmp_dispatch_init(ident_t *loc, int gtid, enum sched_type schedule, T lb,
   kmp_uint32 my_buffer_index;
   dispatch_private_info_template<T> *pr;
   dispatch_shared_info_template<T> volatile *sh;
-
+  // Malleability
+  init_malleability()
   KMP_BUILD_ASSERT(sizeof(dispatch_private_info_template<T>) ==
                    sizeof(dispatch_private_info));
   KMP_BUILD_ASSERT(sizeof(dispatch_shared_info_template<UT>) ==
@@ -1204,7 +1228,8 @@ static void __kmp_dispatch_finish(int gtid, ident_t *loc) {
       pr->ordered_bumped = 0;
     } else {
       UT lower = pr->u.p.ordered_lower;
-
+    
+      release_malleability();
 #ifdef KMP_DEBUG
       {
         char *buff;

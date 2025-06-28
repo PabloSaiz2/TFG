@@ -6130,10 +6130,20 @@ static void __kmp_aux_env_initialize(kmp_env_blk_t *block) {
   }
 }
 /*
-Malleability initialization function
+Malleability initialization function and signal handlers
 */
+void siguser1_handler(int signum,siginfo_t* info, void* context){
+  
+}
 int initialize_malleability_structures(void){
-  printf("Init malleability\n");
+  
+  sa1.sa_sigaction = sigusr1_handler;
+  sigemptyset(&sa1.sa_mask);
+  sa1.sa_flags = SA_SIGINFO;
+  if(sigaction(SIGUSR1,&sa1,NULL)==-1){
+    printf("Fallo al instalar el manejador");
+    return 1;
+  }
 
   return 0;
 }
