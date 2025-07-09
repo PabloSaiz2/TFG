@@ -1,1 +1,0 @@
-/usr/bin/clang++ -fPIC  -Wall -fcolor-diagnostics -Wcast-qual -Wformat-pedantic -Wimplicit-fallthrough -Wsign-compare -Wno-extra -Wno-pedantic -fno-semantic-interposition -fdata-sections -g -shared -Wl,-soname,libarcher.so -o libarcher.so CMakeFiles/archer.dir/ompt-tsan.cpp.o  -ldl 

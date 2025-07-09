@@ -1,2 +1,0 @@
-/home/pablo/Escritorio/TFG-repo/build/DetectTestCompiler/CMakeFiles/edit_cache.dir
-/home/pablo/Escritorio/TFG-repo/build/DetectTestCompiler/CMakeFiles/rebuild_cache.dir
