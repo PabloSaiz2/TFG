@@ -1,0 +1,17 @@
+/home/pablo/openmp-install/lib/libomp.so
+/home/pablo/openmp-install/include/omp.h
+/home/pablo/openmp-install/include/ompx.h
+/home/pablo/openmp-install/include/omp-tools.h
+/home/pablo/openmp-install/include/ompt.h
+/home/pablo/openmp-install/lib/cmake/openmp/FindOpenMPTarget.cmake
+/home/pablo/openmp-install/lib/libarcher.so
+/home/pablo/openmp-install/lib/libarcher_static.a
+/home/pablo/openmp-install/include/ompt-multiplex.h
+/home/pablo/openmp-install/lib/libompd.so
+/home/pablo/openmp-install/share/gdb/python//ompd/ompd_address_space.py
+/home/pablo/openmp-install/share/gdb/python//ompd/frame_filter.py
+/home/pablo/openmp-install/share/gdb/python//ompd/ompdModule.so
+/home/pablo/openmp-install/share/gdb/python//ompd/ompd.py
+/home/pablo/openmp-install/share/gdb/python//ompd/__init__.py
+/home/pablo/openmp-install/share/gdb/python//ompd/ompd_handles.py
+/home/pablo/openmp-install/share/gdb/python//ompd/ompd_callbacks.py

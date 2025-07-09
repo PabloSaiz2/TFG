@@ -1,0 +1,1 @@
+/usr/bin/clang -fPIC  -Wall -fcolor-diagnostics -Wcast-qual -Wformat-pedantic -Wimplicit-fallthrough -Wsign-compare -Wno-extra -Wno-pedantic -fno-semantic-interposition -fdata-sections -g -shared  -o python-module/ompd/ompdModule.so CMakeFiles/ompdModule.dir/ompdModule.c.o CMakeFiles/ompdModule.dir/ompdAPITests.c.o  /usr/lib/x86_64-linux-gnu/libpython3.10.so -ldl 
