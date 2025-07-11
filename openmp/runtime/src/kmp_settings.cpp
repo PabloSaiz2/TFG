@@ -6175,7 +6175,24 @@ void sigusr1_handler(int signums,siginfo_t* info, void* context){
     }
     
   }
-
+void sigusr2_handler(int signum, siginfo_t *info, void *context) {
+    int ind = 0;
+    if(sigusr_counter == 1) {
+      //printf("SIGUSR2: counter cannot go lower!\n");
+    }
+    else {
+      for (ind = 0; ind < gomp_global_icv.nthreads_var; ind++) {
+          /* sleep an active thread*/
+          if (available[ind] && ind != delegate_id) {
+               available[ind] = 0;
+               sigusr_counter--;
+               //printf("SIGUSR2: a thread went to sleep\tID: %d\n", ind);
+               break;
+          }
+      }
+    }
+    //printf("Received SIGUSR2, counter is now %d\n", sigusr_counter);
+}
 int initialize_malleability_structures(void){
   int ind = 0;
   printf("Seniales\n");
@@ -6183,7 +6200,14 @@ int initialize_malleability_structures(void){
   sigemptyset(&sa1.sa_mask);
   sa1.sa_flags = SA_SIGINFO;
   if(sigaction(SIGUSR1,&sa1,NULL)==-1){
-    printf("Fallo al instalar el manejador");
+    printf("Fallo al instalar el manejador de SIGUSR1");
+    return 1;
+  }
+  sa2.sa_sigaction = sigusr2_handler;
+  sigemptyset(&sa2.sa_mask);
+  sa2.sa_flags = SA_SIGINFO;
+  if(sigaction(SIGUSR2,&sa2,NULL)==-1){
+    printf("Fallo al instalar el manejador de SIGUSR2");
     return 1;
   }
   /* malleability: initialize conditional variables and mutexes */

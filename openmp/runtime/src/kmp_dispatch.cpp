@@ -41,7 +41,42 @@ volatile int finalize = 0;
 volatile int delegate_id = 0;
 volatile int* available = NULL;
 volatile int to_be_completed = 0;
+static void block_and_awake_threads(int id) {
+    while (id != delegate_id && !finalize && !available[id]) {
+        pthread_mutex_lock(&mutex_work[id]);
+        if (!finalize)
+          pthread_cond_wait(&cond_work[id], &mutex_work[id]);
 
+        pthread_mutex_unlock(&mutex_work[id]);
+    }
+  int i = 0;
+  for (i = 0; i < __kmp_all_nth; i++) {
+    if (available[i]) {
+      /* wake up blocked threads*/
+      pthread_mutex_lock(&mutex_work[i]);
+      pthread_cond_signal(&cond_work[i]);
+      pthread_mutex_unlock(&mutex_work[i]);
+    }
+  }
+}
+static void final_wake_up() {
+  if (!finalize) {
+    int i = 0;
+    pthread_mutex_lock(&delegate_lock);
+    if (finalize == 1) {
+      pthread_mutex_unlock(&delegate_lock);
+      return;
+    }
+    finalize = 1;
+    for (i = 0; i < __kmp_all_nth; i++) {
+      /* wake up all threads*/
+      pthread_mutex_lock(&mutex_work[i]);
+      pthread_cond_signal(&cond_work[i]);
+      pthread_mutex_unlock(&mutex_work[i]);
+    }
+    pthread_mutex_unlock(&delegate_lock);
+  }
+}
 static void init_malleability(void){
   finalize = 0;
   delegate_id = 0;
@@ -2253,7 +2288,10 @@ static int __kmp_dispatch_next(ident_t *loc, int gtid, kmp_int32 *p_last,
       UT limit, trip, init;
       ST incr;
       T chunk = pr->u.p.parm1;
-
+      #ifdef LIBOMP_MALLEABLE
+        int id = team->t.t_id;
+        block_and_awake_threads(id);
+      #endif
       KD_TRACE(100, ("__kmp_dispatch_next: T#%d kmp_sch_dynamic_chunked case\n",
                      gtid));
 
@@ -2465,6 +2503,9 @@ static int __kmp_dispatch_next(ident_t *loc, int gtid, kmp_int32 *p_last,
 #endif
 #if INCLUDE_SSC_MARKS
   SSC_MARK_DISPATCH_NEXT();
+#endif
+#ifdef LIBOMP_MALLEABLE
+  final_wake_up();
 #endif
   OMPT_LOOP_DISPATCH(*p_lb, *p_ub, pr->u.p.st, status);
   OMPT_LOOP_END;

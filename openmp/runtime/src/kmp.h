@@ -2920,9 +2920,9 @@ typedef struct kmp_teams_size {
  #include "schedctl.h"
  //extern schedctl_t* master_thread_schedctl;
  //extern int gomp_malleable;
- extern int initialize_malleability_structures(void);
-//extern void block_and_awake_threads();
-//extern void final_wake_up();
+  extern int initialize_malleability_structures(void);
+  extern void block_and_awake_threads();
+  extern void final_wake_up();
   /* malleability: loop end? */
   extern volatile int finalize;
   /* malleability: delegate thread id for schedule */
