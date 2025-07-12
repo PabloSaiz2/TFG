@@ -6136,7 +6136,7 @@ pthread_mutex_t delegate_lock;
 pthread_mutex_t* mutex_work;
 pthread_cond_t* cond_work;
 struct sigaction sa1,sa2;
-volatile int sigusr_counter = 1;
+volatile int sigusr_counter = __kmp_nth;
 void sigusr1_handler(int signums,siginfo_t* info, void* context){
   int ind = 0;
   int target_threads = 0;
@@ -6178,20 +6178,20 @@ void sigusr1_handler(int signums,siginfo_t* info, void* context){
 void sigusr2_handler(int signum, siginfo_t *info, void *context) {
     int ind = 0;
     if(sigusr_counter == 1) {
-      //printf("SIGUSR2: counter cannot go lower!\n");
+      printf("SIGUSR2: counter cannot go lower!\n");
     }
     else {
-      for (ind = 0; ind < gomp_global_icv.nthreads_var; ind++) {
+      for (ind = 0; ind < __kmp_all_nth; ind++) {
           /* sleep an active thread*/
           if (available[ind] && ind != delegate_id) {
                available[ind] = 0;
                sigusr_counter--;
-               //printf("SIGUSR2: a thread went to sleep\tID: %d\n", ind);
+               printf("SIGUSR2: a thread went to sleep\tID: %d\n", ind);
                break;
           }
       }
     }
-    //printf("Received SIGUSR2, counter is now %d\n", sigusr_counter);
+    printf("Received SIGUSR2, counter is now %d\n", sigusr_counter);
 }
 int initialize_malleability_structures(void){
   int ind = 0;

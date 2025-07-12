@@ -41,7 +41,7 @@ volatile int finalize = 0;
 volatile int delegate_id = 0;
 volatile int* available = NULL;
 volatile int to_be_completed = 0;
-static void block_and_awake_threads(int id) {
+void block_and_awake_threads(int id) {
     while (id != delegate_id && !finalize && !available[id]) {
         pthread_mutex_lock(&mutex_work[id]);
         if (!finalize)
@@ -59,7 +59,7 @@ static void block_and_awake_threads(int id) {
     }
   }
 }
-static void final_wake_up() {
+void final_wake_up() {
   if (!finalize) {
     int i = 0;
     pthread_mutex_lock(&delegate_lock);
@@ -2505,7 +2505,7 @@ static int __kmp_dispatch_next(ident_t *loc, int gtid, kmp_int32 *p_last,
   SSC_MARK_DISPATCH_NEXT();
 #endif
 #ifdef LIBOMP_MALLEABLE
-  final_wake_up();
+  //final_wake_up();
 #endif
   OMPT_LOOP_DISPATCH(*p_lb, *p_ub, pr->u.p.st, status);
   OMPT_LOOP_END;
