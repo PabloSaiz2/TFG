@@ -2924,6 +2924,7 @@ typedef struct kmp_teams_size {
   extern void block_and_awake_threads();
   extern void final_wake_up();
   /* malleability: loop end? */
+  extern volatile int gomp_malleable;
   extern volatile int finalize;
   /* malleability: delegate thread id for schedule */
   extern volatile int delegate_id;

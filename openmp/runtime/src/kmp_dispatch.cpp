@@ -86,7 +86,7 @@ static void init_malleability(void){
   for(ind=0;ind<__kmp_all_nth;++ind){
     available[ind] = 1;
   }
-  for(ind = __kmp_nth;ind<__kmp_all_nth;++ind){
+  for(ind = 1;ind<__kmp_all_nth;++ind){
     available[ind] = 0;
   }
 }

@@ -1276,12 +1276,12 @@ static void __kmp_std_print_max_tdgs(kmp_str_buf_t *buffer, char const *name,
 } // __kmp_std_print_max_tdgs
 
 static void __kmp_stg_parse_tdg_dot(char const *name, char const *value,
-                                   void *data) {
+                                    void *data) {
   __kmp_stg_parse_bool(name, value, &__kmp_tdg_dot);
 } // __kmp_stg_parse_tdg_dot
 
 static void __kmp_stg_print_tdg_dot(kmp_str_buf_t *buffer, char const *name,
-                                   void *data) {
+                                    void *data) {
   __kmp_stg_print_bool(buffer, name, __kmp_tdg_dot);
 } // __kmp_stg_print_tdg_dot
 #endif
@@ -3727,7 +3727,7 @@ static void __kmp_stg_parse_allocator(char const *name, char const *value,
       (omp_alloctrait_t *)KMP_ALLOCA(ntraits * sizeof(omp_alloctrait_t));
 
 // Helper macros
-#define IS_POWER_OF_TWO(n) (((n) & ((n)-1)) == 0)
+#define IS_POWER_OF_TWO(n) (((n) & ((n) - 1)) == 0)
 
 #define GET_NEXT(sentinel)                                                     \
   {                                                                            \
@@ -5238,7 +5238,7 @@ static void __kmp_stg_parse_hw_subset(char const *name, char const *value,
           attr.set_core_type(KMP_HW_CORE_TYPE_ATOM);
         } else
 #endif
-        if (__kmp_str_match("eff", 3, attr_ptr + 1)) {
+            if (__kmp_str_match("eff", 3, attr_ptr + 1)) {
           const char *number = attr_ptr + 1;
           // skip the eff[iciency] token
           while (isalpha(*number))
@@ -5758,7 +5758,8 @@ static kmp_setting_t __kmp_stg_table[] = {
 #if OMPX_TASKGRAPH
     {"KMP_MAX_TDGS", __kmp_stg_parse_max_tdgs, __kmp_std_print_max_tdgs, NULL,
      0, 0},
-    {"KMP_TDG_DOT", __kmp_stg_parse_tdg_dot, __kmp_stg_print_tdg_dot, NULL, 0, 0},
+    {"KMP_TDG_DOT", __kmp_stg_parse_tdg_dot, __kmp_stg_print_tdg_dot, NULL, 0,
+     0},
 #endif
 
 #if OMPT_SUPPORT
@@ -6129,95 +6130,131 @@ static void __kmp_aux_env_initialize(kmp_env_blk_t *block) {
     ompc_set_dynamic(__kmp_global.g.g_dynamic);
   }
 }
+#ifdef LIBOMP_MALLEABLE
 /*
 Malleability initialization function and signal handlers
 */
+volatile int gomp_malleable = 1;
 pthread_mutex_t delegate_lock;
-pthread_mutex_t* mutex_work;
-pthread_cond_t* cond_work;
-struct sigaction sa1,sa2;
-volatile int sigusr_counter = __kmp_nth;
-void sigusr1_handler(int signums,siginfo_t* info, void* context){
+pthread_mutex_t *mutex_work;
+pthread_cond_t *cond_work;
+#endif
+struct sigaction sa1, sa2;
+volatile int sigusr_counter = 1;
+
+void sigusr1_handler(int signums, siginfo_t *info, void *context) {
   int ind = 0;
   int target_threads = 0;
-   
-  //Checking malleability setup
-  //if(gomp_malleable){
-    //if(!master_thread_schedctl)
-      //return;
-    //Set target
-    target_threads =  __kmp_all_nth;//master_thread_schedctl->sc_num_threads;
+  
+  // Checking malleability setup
+  if(gomp_malleable){
+  // if(!master_thread_schedctl)
+  // return;
+  // Set target
+  target_threads = __kmp_all_nth; // master_thread_schedctl->sc_num_threads;
 
-    //Checkear si el objetivo es demasiado alto y actualizar master thread
-    if(target_threads>__kmp_all_nth){
-      target_threads = __kmp_all_nth;
-      //master_thread_schedctl->sc_num_threads=target_threads;
-    }
-    //No se puede crecer o el objetivo es 0
-
-    if(target_threads==sigusr_counter||target_threads<1)
-      return;
-    
-    if(target_threads>sigusr_counter){
-      ind = sigusr_counter;
-      
-      while(target_threads!=sigusr_counter){
-        if(!available[ind]&&ind!=delegate_id){
-          available[ind]=1;
-          sigusr_counter++;
-          pthread_cond_signal(&cond_work[ind]);
-        }
-        ind = (ind+1)%__kmp_all_nth;
-      } 
-    }
-    else{
-
-    }
-    
+  // Checkear si el objetivo es demasiado alto y actualizar master thread
+  if (target_threads > __kmp_all_nth) {
+    target_threads = __kmp_all_nth;
+    // master_thread_schedctl->sc_num_threads=target_threads;
   }
-void sigusr2_handler(int signum, siginfo_t *info, void *context) {
-    int ind = 0;
-    if(sigusr_counter == 1) {
-      printf("SIGUSR2: counter cannot go lower!\n");
+  // No se puede crecer o el objetivo es 0
+
+  if (target_threads == sigusr_counter || target_threads < 1)
+    return;
+
+   /* Wake threads up */
+  if (target_threads > sigusr_counter) {
+    printf("Attempting to increment the thread count from %d to %d\n",
+           sigusr_counter, target_threads);
+    ind = sigusr_counter;
+    while (target_threads != sigusr_counter) {
+      /* wake up a blocked thread*/
+      printf("Incrementing\n");
+      if (!available[ind] && ind != delegate_id) {
+        available[ind] = 1;
+        sigusr_counter++;
+        pthread_cond_signal(&cond_work[ind]);
+        
+      }
+      ind = (ind + 1) % __kmp_all_nth;
     }
-    else {
-      for (ind = 0; ind < __kmp_all_nth; ind++) {
-          /* sleep an active thread*/
-          if (available[ind] && ind != delegate_id) {
-               available[ind] = 0;
-               sigusr_counter--;
-               printf("SIGUSR2: a thread went to sleep\tID: %d\n", ind);
-               break;
-          }
+  }
+  else {
+    printf("Attempting to decrement the thread count from %d to %d\n",
+           sigusr_counter, target_threads);
+    ind = sigusr_counter - 1;
+    while (ind < __kmp_all_nth &&
+           target_threads != sigusr_counter) {
+      /* request to block a thread */
+      if (available[ind] && ind != delegate_id) {
+        available[ind] = 0;
+        sigusr_counter--;
+      }
+      ind = (ind - 1) % __kmp_all_nth;
+    }
+  }
+}
+else {
+  /* User-space control */
+  if (sigusr_counter == __kmp_all_nth) {
+    printf("SIGUSR1: counter cannot go higher!\n");
+  } else {
+    for (ind = 0; ind < __kmp_all_nth; ind++) {
+      /* wake up a blocked thread*/
+      if (!available[ind] && ind != delegate_id) {
+        available[ind] = 1;
+        sigusr_counter++;
+        pthread_cond_signal(&cond_work[ind]);
+        printf("SIGUSR1: a thread woke up\tID: %d\n", ind);
+        break;
       }
     }
-    printf("Received SIGUSR2, counter is now %d\n", sigusr_counter);
+  }
 }
-int initialize_malleability_structures(void){
+}
+
+void sigusr2_handler(int signum, siginfo_t *info, void *context) {
+  int ind = 0;
+  if (sigusr_counter == 1) {
+    printf("SIGUSR2: counter cannot go lower!\n");
+  } else {
+    for (ind = 0; ind < __kmp_all_nth; ind++) {
+      /* sleep an active thread*/
+      if (available[ind] && ind != delegate_id) {
+        available[ind] = 0;
+        sigusr_counter--;
+        printf("SIGUSR2: a thread went to sleep\tID: %d\n", ind);
+        break;
+      }
+    }
+  }
+  printf("Received SIGUSR2, counter is now %d\n", sigusr_counter);
+}
+int initialize_malleability_structures(void) {
   int ind = 0;
   printf("Seniales\n");
   sa1.sa_sigaction = sigusr1_handler;
   sigemptyset(&sa1.sa_mask);
   sa1.sa_flags = SA_SIGINFO;
-  if(sigaction(SIGUSR1,&sa1,NULL)==-1){
+  if (sigaction(SIGUSR1, &sa1, NULL) == -1) {
     printf("Fallo al instalar el manejador de SIGUSR1");
     return 1;
   }
   sa2.sa_sigaction = sigusr2_handler;
   sigemptyset(&sa2.sa_mask);
   sa2.sa_flags = SA_SIGINFO;
-  if(sigaction(SIGUSR2,&sa2,NULL)==-1){
+  if (sigaction(SIGUSR2, &sa2, NULL) == -1) {
     printf("Fallo al instalar el manejador de SIGUSR2");
     return 1;
   }
   /* malleability: initialize conditional variables and mutexes */
-  mutex_work = (pthread_mutex_t *)malloc(__kmp_all_nth *
-  sizeof(pthread_mutex_t));
-  cond_work = (pthread_cond_t *)malloc(__kmp_all_nth *
-  sizeof(pthread_cond_t));
+  mutex_work =
+      (pthread_mutex_t *)malloc(__kmp_all_nth * sizeof(pthread_mutex_t));
+  cond_work = (pthread_cond_t *)malloc(__kmp_all_nth * sizeof(pthread_cond_t));
   for (ind = 0; ind < __kmp_all_nth; ind++) {
-      pthread_mutex_init(&mutex_work[ind], NULL);
-      pthread_cond_init(&cond_work[ind], NULL);
+    pthread_mutex_init(&mutex_work[ind], NULL);
+    pthread_cond_init(&cond_work[ind], NULL);
   }
   pthread_mutex_init(&delegate_lock, NULL);
   return 0;
@@ -6227,12 +6264,12 @@ void __kmp_env_initialize(char const *string) {
   kmp_env_blk_t block;
   int i;
   printf("ENV\n");
-  #ifdef LIBOMP_MALLEABLE
-    if(initialize_malleability_structures())
-      exit(1);
-  #endif
+#ifdef LIBOMP_MALLEABLE
+  if (initialize_malleability_structures())
+    exit(1);
+#endif
   __kmp_stg_init();
-  
+
   // Hack!!!
   if (string == NULL) {
     // __kmp_max_nth = __kmp_sys_max_nth;
