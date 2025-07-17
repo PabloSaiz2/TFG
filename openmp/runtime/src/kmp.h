@@ -358,7 +358,7 @@ typedef enum kmp_sched {
   kmp_sched_static_steal = 102, // mapped to kmp_sch_static_steal (44)
 #endif
   kmp_sched_upper,
-  kmp_sched_default = kmp_sched_static, // default scheduling
+  kmp_sched_default = kmp_sched_dynamic, // default scheduling
   kmp_sched_monotonic = 0x80000000
 } kmp_sched_t;
 #endif
@@ -2920,6 +2920,7 @@ typedef struct kmp_teams_size {
  #include "schedctl.h"
  //extern schedctl_t* master_thread_schedctl;
  //extern int gomp_malleable;
+  extern volatile int sigusr_counter;
   extern int initialize_malleability_structures(void);
   extern void block_and_awake_threads();
   extern void final_wake_up();

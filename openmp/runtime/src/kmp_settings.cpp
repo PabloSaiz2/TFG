@@ -6151,6 +6151,8 @@ void sigusr1_handler(int signums, siginfo_t *info, void *context) {
   // if(!master_thread_schedctl)
   // return;
   // Set target
+  //pthread_t tid = pthread_self();
+  //printf("thread ID singal: %lu\n",(unsigned long)tid);
   target_threads = __kmp_all_nth; // master_thread_schedctl->sc_num_threads;
 
   // Checkear si el objetivo es demasiado alto y actualizar master thread
@@ -6165,24 +6167,26 @@ void sigusr1_handler(int signums, siginfo_t *info, void *context) {
 
    /* Wake threads up */
   if (target_threads > sigusr_counter) {
-    printf("Attempting to increment the thread count from %d to %d\n",
-           sigusr_counter, target_threads);
+    //printf("Attempting to increment the thread count from %d to %d\n",
+           //sigusr_counter, target_threads);
     ind = sigusr_counter;
     while (target_threads != sigusr_counter) {
       /* wake up a blocked thread*/
-      printf("Incrementing\n");
+      //printf("Target:%d;Counter:%d\n",target_threads,sigusr_counter);
       if (!available[ind] && ind != delegate_id) {
         available[ind] = 1;
         sigusr_counter++;
         pthread_cond_signal(&cond_work[ind]);
         
       }
-      ind = (ind + 1) % __kmp_all_nth;
+      ind = (ind + 1) % __kmp_nth;
     }
+    //printf("Thread count:%d\n",
+           //sigusr_counter);
   }
   else {
-    printf("Attempting to decrement the thread count from %d to %d\n",
-           sigusr_counter, target_threads);
+    //printf("Attempting to decrement the thread count from %d to %d\n",
+           //sigusr_counter, target_threads);
     ind = sigusr_counter - 1;
     while (ind < __kmp_all_nth &&
            target_threads != sigusr_counter) {
@@ -6198,7 +6202,7 @@ void sigusr1_handler(int signums, siginfo_t *info, void *context) {
 else {
   /* User-space control */
   if (sigusr_counter == __kmp_all_nth) {
-    printf("SIGUSR1: counter cannot go higher!\n");
+    //printf("SIGUSR1: counter cannot go higher!\n");
   } else {
     for (ind = 0; ind < __kmp_all_nth; ind++) {
       /* wake up a blocked thread*/
@@ -6206,7 +6210,7 @@ else {
         available[ind] = 1;
         sigusr_counter++;
         pthread_cond_signal(&cond_work[ind]);
-        printf("SIGUSR1: a thread woke up\tID: %d\n", ind);
+        //printf("SIGUSR1: a thread woke up\tID: %d\n", ind);
         break;
       }
     }
@@ -6217,23 +6221,25 @@ else {
 void sigusr2_handler(int signum, siginfo_t *info, void *context) {
   int ind = 0;
   if (sigusr_counter == 1) {
-    printf("SIGUSR2: counter cannot go lower!\n");
+    //printf("SIGUSR2: counter cannot go lower!\n");
   } else {
     for (ind = 0; ind < __kmp_all_nth; ind++) {
       /* sleep an active thread*/
       if (available[ind] && ind != delegate_id) {
         available[ind] = 0;
         sigusr_counter--;
-        printf("SIGUSR2: a thread went to sleep\tID: %d\n", ind);
+        //printf("SIGUSR2: a thread went to sleep\tID: %d\n", ind);
         break;
       }
     }
   }
-  printf("Received SIGUSR2, counter is now %d\n", sigusr_counter);
+  //printf("Received SIGUSR2, counter is now %d\n", sigusr_counter);
 }
 int initialize_malleability_structures(void) {
   int ind = 0;
-  printf("Seniales\n");
+  pthread_t tid = pthread_self();
+  printf("thread ID: %lu\n",(unsigned long)tid);
+  //printf("Seniales\n");
   sa1.sa_sigaction = sigusr1_handler;
   sigemptyset(&sa1.sa_mask);
   sa1.sa_flags = SA_SIGINFO;

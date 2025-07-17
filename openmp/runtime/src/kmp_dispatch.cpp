@@ -2263,7 +2263,7 @@ static int __kmp_dispatch_next(ident_t *loc, int gtid, kmp_int32 *p_last,
       1000,
       ("__kmp_dispatch_next: T#%d called p_lb:%p p_ub:%p p_st:%p p_last: %p\n",
        gtid, p_lb, p_ub, p_st, p_last));
-
+  printf("active:%d",sigusr_counter);
   if (team->t.t_serialized) {
     /* NOTE: serialize this dispatch because we are not at the active level */
     pr = reinterpret_cast<dispatch_private_info_template<T> *>(
