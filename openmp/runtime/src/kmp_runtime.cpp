@@ -255,7 +255,6 @@ int __kmp_get_global_thread_id() {
 
 int __kmp_get_global_thread_id_reg() {
   int gtid;
-  printf("GTID Mode: %d\n",__kmp_gtid_mode);
   if (!__kmp_init_serial) {
     gtid = KMP_GTID_DNE;
   } else
@@ -7528,7 +7527,6 @@ void __kmp_middle_initialize(void) {
 
 void __kmp_parallel_initialize(void) {
   int gtid = __kmp_entry_gtid(); // this might be a new root
-  printf("Iniciando paralelo\n");
   /* synchronize parallel initialization (for sibling) */
   if (TCR_4(__kmp_init_parallel))
     return;
@@ -8402,7 +8400,6 @@ int __kmp_ignore_mppend(void) {
 void __kmp_internal_begin(void) {
   int gtid;
   kmp_root_t *root;
-  printf("Inicio\n");
   #ifdef LIBOMP_MALLEABLE
     if(initialize_malleability_structures())
       exit(1);

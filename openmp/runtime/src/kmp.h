@@ -2917,6 +2917,7 @@ typedef struct kmp_teams_size {
   
 
 #ifdef LIBOMP_MALLEABLE
+ extern volatile int max_hilos;
  #include "schedctl.h"
  //extern schedctl_t* master_thread_schedctl;
  //extern int gomp_malleable;

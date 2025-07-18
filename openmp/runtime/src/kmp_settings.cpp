@@ -6141,7 +6141,7 @@ pthread_cond_t *cond_work;
 #endif
 struct sigaction sa1, sa2;
 volatile int sigusr_counter = 1;
-
+volatile int max_hilos = 8;
 void sigusr1_handler(int signums, siginfo_t *info, void *context) {
   int ind = 0;
   int target_threads = 0;
@@ -6152,7 +6152,6 @@ void sigusr1_handler(int signums, siginfo_t *info, void *context) {
   // return;
   // Set target
   //pthread_t tid = pthread_self();
-  //printf("thread ID singal: %lu\n",(unsigned long)tid);
   target_threads = __kmp_all_nth; // master_thread_schedctl->sc_num_threads;
 
   // Checkear si el objetivo es demasiado alto y actualizar master thread
@@ -6167,26 +6166,20 @@ void sigusr1_handler(int signums, siginfo_t *info, void *context) {
 
    /* Wake threads up */
   if (target_threads > sigusr_counter) {
-    //printf("Attempting to increment the thread count from %d to %d\n",
-           //sigusr_counter, target_threads);
+    
     ind = sigusr_counter;
     while (target_threads != sigusr_counter) {
       /* wake up a blocked thread*/
-      //printf("Target:%d;Counter:%d\n",target_threads,sigusr_counter);
       if (!available[ind] && ind != delegate_id) {
         available[ind] = 1;
         sigusr_counter++;
         pthread_cond_signal(&cond_work[ind]);
         
       }
-      ind = (ind + 1) % __kmp_nth;
+      ind = (ind + 1) % max_hilos;
     }
-    //printf("Thread count:%d\n",
-           //sigusr_counter);
   }
   else {
-    //printf("Attempting to decrement the thread count from %d to %d\n",
-           //sigusr_counter, target_threads);
     ind = sigusr_counter - 1;
     while (ind < __kmp_all_nth &&
            target_threads != sigusr_counter) {
@@ -6195,14 +6188,13 @@ void sigusr1_handler(int signums, siginfo_t *info, void *context) {
         available[ind] = 0;
         sigusr_counter--;
       }
-      ind = (ind - 1) % __kmp_all_nth;
+      ind = (ind - 1) % max_hilos;
     }
   }
 }
 else {
   /* User-space control */
   if (sigusr_counter == __kmp_all_nth) {
-    //printf("SIGUSR1: counter cannot go higher!\n");
   } else {
     for (ind = 0; ind < __kmp_all_nth; ind++) {
       /* wake up a blocked thread*/
@@ -6210,7 +6202,6 @@ else {
         available[ind] = 1;
         sigusr_counter++;
         pthread_cond_signal(&cond_work[ind]);
-        //printf("SIGUSR1: a thread woke up\tID: %d\n", ind);
         break;
       }
     }
@@ -6221,25 +6212,21 @@ else {
 void sigusr2_handler(int signum, siginfo_t *info, void *context) {
   int ind = 0;
   if (sigusr_counter == 1) {
-    //printf("SIGUSR2: counter cannot go lower!\n");
   } else {
-    for (ind = 0; ind < __kmp_all_nth; ind++) {
+    for (ind = 0; ind < max_hilos; ind++) {
       /* sleep an active thread*/
       if (available[ind] && ind != delegate_id) {
         available[ind] = 0;
         sigusr_counter--;
-        //printf("SIGUSR2: a thread went to sleep\tID: %d\n", ind);
         break;
       }
     }
   }
-  //printf("Received SIGUSR2, counter is now %d\n", sigusr_counter);
 }
 int initialize_malleability_structures(void) {
   int ind = 0;
-  pthread_t tid = pthread_self();
-  printf("thread ID: %lu\n",(unsigned long)tid);
-  //printf("Seniales\n");
+  pid_t tid = gettid();
+  printf("thread ID: %d\n",tid);
   sa1.sa_sigaction = sigusr1_handler;
   sigemptyset(&sa1.sa_mask);
   sa1.sa_flags = SA_SIGINFO;
@@ -6256,9 +6243,9 @@ int initialize_malleability_structures(void) {
   }
   /* malleability: initialize conditional variables and mutexes */
   mutex_work =
-      (pthread_mutex_t *)malloc(__kmp_all_nth * sizeof(pthread_mutex_t));
-  cond_work = (pthread_cond_t *)malloc(__kmp_all_nth * sizeof(pthread_cond_t));
-  for (ind = 0; ind < __kmp_all_nth; ind++) {
+      (pthread_mutex_t *)malloc(max_hilos * sizeof(pthread_mutex_t));
+  cond_work = (pthread_cond_t *)malloc(max_hilos * sizeof(pthread_cond_t));
+  for (ind = 0; ind < max_hilos; ind++) {
     pthread_mutex_init(&mutex_work[ind], NULL);
     pthread_cond_init(&cond_work[ind], NULL);
   }
@@ -6269,7 +6256,6 @@ void __kmp_env_initialize(char const *string) {
 
   kmp_env_blk_t block;
   int i;
-  printf("ENV\n");
 #ifdef LIBOMP_MALLEABLE
   if (initialize_malleability_structures())
     exit(1);

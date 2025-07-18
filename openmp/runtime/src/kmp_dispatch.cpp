@@ -50,7 +50,7 @@ void block_and_awake_threads(int id) {
         pthread_mutex_unlock(&mutex_work[id]);
     }
   int i = 0;
-  for (i = 0; i < __kmp_all_nth; i++) {
+  for (i = 0; i < max_hilos; i++) {
     if (available[i]) {
       /* wake up blocked threads*/
       pthread_mutex_lock(&mutex_work[i]);
@@ -68,7 +68,7 @@ void final_wake_up() {
       return;
     }
     finalize = 1;
-    for (i = 0; i < __kmp_all_nth; i++) {
+    for (i = 0; i < max_hilos; i++) {
       /* wake up all threads*/
       pthread_mutex_lock(&mutex_work[i]);
       pthread_cond_signal(&cond_work[i]);
@@ -82,11 +82,11 @@ static void init_malleability(void){
   delegate_id = 0;
   to_be_completed = 0;
   int ind =0;
-  available = (int*)malloc(sizeof(int)*__kmp_all_nth);
-  for(ind=0;ind<__kmp_all_nth;++ind){
+  available = (int*)malloc(sizeof(int)*max_hilos);
+  for(ind=0;ind<max_hilos;++ind){
     available[ind] = 1;
   }
-  for(ind = 1;ind<__kmp_all_nth;++ind){
+  for(ind = 1;ind<max_hilos;++ind){
     available[ind] = 0;
   }
 }
@@ -1028,7 +1028,6 @@ __kmp_dispatch_init(ident_t *loc, int gtid, enum sched_type schedule, T lb,
   dispatch_private_info_template<T> *pr;
   dispatch_shared_info_template<T> volatile *sh;
   // Malleability
-  printf("Sched guided, dynamic or runtime\n");
   init_malleability();
   KMP_BUILD_ASSERT(sizeof(dispatch_private_info_template<T>) ==
                    sizeof(dispatch_private_info));
@@ -2257,13 +2256,12 @@ static int __kmp_dispatch_next(ident_t *loc, int gtid, kmp_int32 *p_last,
   __kmp_assert_valid_gtid(gtid);
   kmp_info_t *th = __kmp_threads[gtid];
   kmp_team_t *team = th->th.th_team;
-
+  printf("Hilos:%d\n",sigusr_counter);
   KMP_DEBUG_ASSERT(p_lb && p_ub && p_st); // AC: these cannot be NULL
   KD_TRACE(
       1000,
       ("__kmp_dispatch_next: T#%d called p_lb:%p p_ub:%p p_st:%p p_last: %p\n",
        gtid, p_lb, p_ub, p_st, p_last));
-  printf("active:%d",sigusr_counter);
   if (team->t.t_serialized) {
     /* NOTE: serialize this dispatch because we are not at the active level */
     pr = reinterpret_cast<dispatch_private_info_template<T> *>(
@@ -2504,12 +2502,13 @@ static int __kmp_dispatch_next(ident_t *loc, int gtid, kmp_int32 *p_last,
 #if INCLUDE_SSC_MARKS
   SSC_MARK_DISPATCH_NEXT();
 #endif
-#ifdef LIBOMP_MALLEABLE
-  //final_wake_up();
-#endif
+
   OMPT_LOOP_DISPATCH(*p_lb, *p_ub, pr->u.p.st, status);
   OMPT_LOOP_END;
   KMP_STATS_LOOP_END;
+  #ifdef LIBOMP_MALLEABLE
+    final_wake_up();
+  #endif
   return status;
 }
 

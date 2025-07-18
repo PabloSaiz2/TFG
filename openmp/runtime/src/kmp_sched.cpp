@@ -891,7 +891,7 @@ void __kmpc_for_static_init_4(ident_t *loc, kmp_int32 gtid, kmp_int32 schedtype,
                               kmp_int32 *plastiter, kmp_int32 *plower,
                               kmp_int32 *pupper, kmp_int32 *pstride,
                               kmp_int32 incr, kmp_int32 chunk) {
-                            printf("Sched Init\n");
+                            
   __kmp_for_static_init<kmp_int32>(loc, gtid, schedtype, plastiter, plower,
                                    pupper, pstride, incr, chunk
 #if OMPT_SUPPORT && OMPT_OPTIONAL
