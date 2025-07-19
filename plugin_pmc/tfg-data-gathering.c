@@ -1,10 +1,10 @@
 #include <linux/ktime.h>
 #include <pmc/pmcsched.h>
-#define INFO_MAX_THREADS 64
+#define TMON_MAX_THREADS 64
 
 
 typedef struct{
-    ktime_t stats[INFO_MAX_THREADS+1];
+    ktime_t stats[TMON_MAX_THREADS+1];
     ktime_t last_threadcount_update;
     unsigned long nr_changes;
     unsigned long count_mask;
@@ -56,4 +56,30 @@ static void on_exit_thread_data(pmcsched_thread_data_t* t){
         print_thread_statistics(tsk,p);
     }
     write_unlock_irqrestore(&tsk->lock,flags);
+}
+void noinline trace_data_stats(struct task_struct* p,char* buf){
+    asm(" ");
+}
+
+static void print_threads_statistics(tmon_global_app_t* gbl_app,struct task_struct* p){
+    char comm[TASK_COMM_LEN];
+    char *dest = tracebuf;
+    thread_count_stats_t* tcount_stats;
+    int i=0;
+    static unsigned char first_time=1;
+    static spinlock_t lock;
+
+    if(first_time){
+        first_time=0;
+        spin_lock_init(&lock);
+    }
+    spin_lock(&lock);
+    tcount_stats=&gbl_app->tcount_stats;
+    get_task_comm(comm,p);
+    dest +=sprintf(dest,"%s,%d",comm,p->tgid);
+    for(i=0< MAX_THREADS_OUT+1;i++){
+        dest+= sprintf(dest,",%llu",(tcount_stats->stats[i]/1000));
+    }
+    trace_data_stats(p,tracebuf);
+    spin_unlock(&lock);
 }

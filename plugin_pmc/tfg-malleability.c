@@ -1,6 +1,5 @@
 /*=============================================================
  * Malleability scheduling plugin for the llvm's openmp runtime
- * Author Pablo Saiz Blazquez
  *=============================================================
 */
 
@@ -95,6 +94,91 @@ static void sched_timer_periodic_fair_mall(void){
         if(sized_list_length(&mall_gbl.signal_list>0))
             cur_group->activate_kthread =1;
         spin_unlock_irqstire(&mall_gbl,mall_lock,flags);
+    }
+}
+static inline unsigned int get_typical_thread_count(thread_count_stats_t* tstats,ktime_t threshold){
+    ktime_t acum = ktime_set(0,0);
+    int i = tstats->nr:max_threads;
+
+    while(i>0){
+        if((tstats->count_mask&(1ULL<<(i-1)))){
+            acum=ktime_add(tstats->stats[i],acum);
+            if(ktime_compare(tstats->stats[i],threshold)>0||ktime_compare(acum,threshold>0))
+                return i;
+        }
+        i--;
+    }
+    return i;
+
+}
+static void sched_kthread_periodic_mall(sized_list_t *foo_list){
+    sized_list_t local_list;
+    sized_list_t *signal_list=&&mall_gbl.signal_list;
+    tmon_global_app_t *elem, *next;
+    pmcsched_thread_data_t *thr;
+    unsigned long flags;
+    struct task_struct *p;
+    char comm[TASK_COMM_LEN];
+    int ret = 0;
+
+    spin_lock_irqsave(&mall_gbl.mall_lock,flags);
+
+    if(sized_list_length(signal_list)==0){
+        spin_unlock_irqrestore(&mall_gbl.mall_lock,flags);
+        return;
+    }
+
+    init_sized_list(&local_list,offsetof(tmon_global_app_t,signal_links));
+
+    elem = head_sized_list(signal_list);
+    while(elem!=NULL){
+        //Proximo elemento
+        next = next_sized_list(signal_list,elem);
+        //Quitar de la lista global
+        elem->flags &= ~TMON_APP_TO_BE_SIGNALED;
+        remove_sized_list(signal_list,elem);
+        thr = retrieve_active_thread(elem);
+        if(unlikely(!thr)){
+            trace_printk("Attempting to send signal to idle malleable app\n");
+            elem = next;
+            continue;
+        }
+        //Destinatario de la senial
+        elem->signal_recipient=thr->prof->this_tsk;
+
+        get_task_struct(elem->signal_recipient);
+        insert_sized_list_tail(&local_list,elem);
+        //Siguiente iteracion
+        elem = next;
+    }
+    spin_unlock_irqrestore(&mall_gbl.mall_lock,flags);
+
+    for(elem=head_sized_list(&local_list);elem!=NULL;elem= next_sized_list(&local_list,elem)){
+        p = elem->signal_recipient;
+        elem->signal_recipient= NULL;
+        get_task_comm(comm,p);
+
+        if(p->flags & PF_EXITING){
+            put_task_struct(p);
+            spin_lock_irqsave(&mall_gbl.mall_lock,flags);
+            elem->signal_recipient = NULL;
+            thr = retrieve_active_thread(elem);
+            if(!thr||!(p=thr->prof->this_tsk)||(p->flags&PF_EXITING)){
+                trace_printk("No se ha encontrado un mejor hilo candidato para mandar la senial\n");
+                continue;
+            }
+            elem->signal_recipient = p;
+            get_task_struct(elem->signal_recipient);
+            spin_unlock_irqrestore(&mall_gbl.mall_lock,flags);
+        }
+        if((ret=send_sig_info(SIGUSR1,SEND_SIG_PRIV,p))){
+            trace_printk("send_sig_info ha fallado con el valor=%d, para el proceso con PID=%d (%s) .\n",ret,p->tgid.comm);
+        }
+        else{
+            trace_printk("send_sig_info ha sido exitoso para el proceso con PID=%d (%s) .\n",p->tgid,comm);
+        }
+        elem->signal_recipient=NULL;
+        put_task_struct(p);
     }
 }
 sched_ops_t tfg_plugin = {
