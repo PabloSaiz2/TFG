@@ -50,7 +50,7 @@ void block_and_awake_threads(int id) {
         pthread_mutex_unlock(&mutex_work[id]);
     }
   int i = 0;
-  for (i = 0; i < max_hilos; i++) {
+  for (i = 0; i < __kmp_max_threads; i++) {
     if (available[i]) {
       /* wake up blocked threads*/
       pthread_mutex_lock(&mutex_work[i]);
@@ -68,7 +68,7 @@ void final_wake_up() {
       return;
     }
     finalize = 1;
-    for (i = 0; i < max_hilos; i++) {
+    for (i = 0; i < __kmp_max_threads; i++) {
       /* wake up all threads*/
       pthread_mutex_lock(&mutex_work[i]);
       pthread_cond_signal(&cond_work[i]);
@@ -82,11 +82,11 @@ static void init_malleability(void){
   delegate_id = 0;
   to_be_completed = 0;
   int ind =0;
-  available = (int*)malloc(sizeof(int)*max_hilos);
-  for(ind=0;ind<max_hilos;++ind){
+  available = (int*)malloc(sizeof(int)*__kmp_max_threads);
+  for(ind=0;ind<__kmp_max_threads;++ind){
     available[ind] = 1;
   }
-  for(ind = 1;ind<max_hilos;++ind){
+  for(ind = __kmp_initial_threads;ind<__kmp_max_threads;++ind){
     available[ind] = 0;
   }
 }

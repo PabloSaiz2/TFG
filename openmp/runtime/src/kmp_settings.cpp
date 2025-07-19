@@ -6140,8 +6140,8 @@ pthread_mutex_t *mutex_work;
 pthread_cond_t *cond_work;
 #endif
 struct sigaction sa1, sa2;
-volatile int sigusr_counter = 1;
-volatile int max_hilos = 8;
+volatile int sigusr_counter;
+//volatile int __kmp_nested_nth.nth[0] = 8;
 void sigusr1_handler(int signums, siginfo_t *info, void *context) {
   int ind = 0;
   int target_threads = 0;
@@ -6151,12 +6151,11 @@ void sigusr1_handler(int signums, siginfo_t *info, void *context) {
   // if(!master_thread_schedctl)
   // return;
   // Set target
-  //pthread_t tid = pthread_self();
-  target_threads = __kmp_all_nth; // master_thread_schedctl->sc_num_threads;
+  target_threads = 7; // master_thread_schedctl->sc_num_threads;
 
   // Checkear si el objetivo es demasiado alto y actualizar master thread
-  if (target_threads > __kmp_all_nth) {
-    target_threads = __kmp_all_nth;
+  if (target_threads > 7) {
+    target_threads = 7;
     // master_thread_schedctl->sc_num_threads=target_threads;
   }
   // No se puede crecer o el objetivo es 0
@@ -6176,27 +6175,27 @@ void sigusr1_handler(int signums, siginfo_t *info, void *context) {
         pthread_cond_signal(&cond_work[ind]);
         
       }
-      ind = (ind + 1) % max_hilos;
+      ind = (ind + 1) % 7;
     }
   }
   else {
     ind = sigusr_counter - 1;
-    while (ind < __kmp_all_nth &&
+    while (ind < 7 &&
            target_threads != sigusr_counter) {
       /* request to block a thread */
       if (available[ind] && ind != delegate_id) {
         available[ind] = 0;
         sigusr_counter--;
       }
-      ind = (ind - 1) % max_hilos;
+      ind = (ind - 1) % 7;
     }
   }
 }
 else {
   /* User-space control */
-  if (sigusr_counter == __kmp_all_nth) {
+  if (sigusr_counter == 7) {
   } else {
-    for (ind = 0; ind < __kmp_all_nth; ind++) {
+    for (ind = 0; ind < 7; ind++) {
       /* wake up a blocked thread*/
       if (!available[ind] && ind != delegate_id) {
         available[ind] = 1;
@@ -6213,7 +6212,7 @@ void sigusr2_handler(int signum, siginfo_t *info, void *context) {
   int ind = 0;
   if (sigusr_counter == 1) {
   } else {
-    for (ind = 0; ind < max_hilos; ind++) {
+    for (ind = 0; ind < 7; ind++) {
       /* sleep an active thread*/
       if (available[ind] && ind != delegate_id) {
         available[ind] = 0;
@@ -6225,8 +6224,8 @@ void sigusr2_handler(int signum, siginfo_t *info, void *context) {
 }
 int initialize_malleability_structures(void) {
   int ind = 0;
-  pid_t tid = gettid();
-  printf("thread ID: %d\n",tid);
+  //pid_t tid = gettid();
+  //printf("thread ID: %d\n",tid);
   sa1.sa_sigaction = sigusr1_handler;
   sigemptyset(&sa1.sa_mask);
   sa1.sa_flags = SA_SIGINFO;
@@ -6243,20 +6242,40 @@ int initialize_malleability_structures(void) {
   }
   /* malleability: initialize conditional variables and mutexes */
   mutex_work =
-      (pthread_mutex_t *)malloc(max_hilos * sizeof(pthread_mutex_t));
-  cond_work = (pthread_cond_t *)malloc(max_hilos * sizeof(pthread_cond_t));
-  for (ind = 0; ind < max_hilos; ind++) {
+      (pthread_mutex_t *)malloc(7 * sizeof(pthread_mutex_t));
+  cond_work = (pthread_cond_t *)malloc(7 * sizeof(pthread_cond_t));
+  for (ind = 0; ind < 7; ind++) {
     pthread_mutex_init(&mutex_work[ind], NULL);
     pthread_cond_init(&cond_work[ind], NULL);
   }
   pthread_mutex_init(&delegate_lock, NULL);
   return 0;
 }
+int __kmp_initial_threads;
+int __kmp_max_threads;
 void __kmp_env_initialize(char const *string) {
 
   kmp_env_blk_t block;
   int i;
 #ifdef LIBOMP_MALLEABLE
+//Lectura adicional de OMP_NUM_THREADS
+  const char *raw_value_omp_threads = __kmp_env_get("OMP_NUM_THREADS");
+  __kmp_max_threads = 4;
+  if(raw_value_omp_threads!=NULL){
+     int parsed = __kmp_str_to_int(raw_value_omp_threads,NULL);
+     __kmp_max_threads = parsed;
+  }
+//Lectura de threads iniciales
+  const char *raw_value_init_threads = __kmp_env_get("INITIAL_THREADS");
+  if(raw_value_init_threads!=NULL){
+     int parsed = __kmp_str_to_int(raw_value_init_threads,NULL);
+     __kmp_initial_threads = (parsed%__kmp_max_threads)+1;
+  }
+  else{
+    __kmp_initial_threads = __kmp_max_threads;
+  }
+
+  sigusr_counter = __kmp_initial_threads;
   if (initialize_malleability_structures())
     exit(1);
 #endif

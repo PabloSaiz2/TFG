@@ -2917,10 +2917,11 @@ typedef struct kmp_teams_size {
   
 
 #ifdef LIBOMP_MALLEABLE
- extern volatile int max_hilos;
  #include "schedctl.h"
  //extern schedctl_t* master_thread_schedctl;
  //extern int gomp_malleable;
+  extern int __kmp_initial_threads;
+  extern int __kmp_max_threads;
   extern volatile int sigusr_counter;
   extern int initialize_malleability_structures(void);
   extern void block_and_awake_threads();
@@ -2972,7 +2973,8 @@ typedef struct KMP_ALIGN_CACHE kmp_base_info {
   kmp_info_p *th_next_pool; /* next available thread in the pool */
   kmp_disp_t *th_dispatch; /* thread's dispatch data */
   int th_in_pool; /* in thread pool (32 bits for TCR/TCW) */
-
+  schedctl_t* schedctl_data; //Memoria compartida
+  int schedctl_fd; // Descriptor de fichero para la entrada del schedctl
   /* The following are cached from the team info structure */
   /* TODO use these in more places as determined to be needed via profiling */
   int th_team_nproc; /* number of threads in a team */
