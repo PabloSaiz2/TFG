@@ -83,3 +83,16 @@ static void print_threads_statistics(tmon_global_app_t* gbl_app,struct task_stru
     trace_data_stats(p,tracebuf);
     spin_unlock(&lock);
 }
+sched_ops_t tfg_data_plugin = {
+    .policy = SCHED_DATA,
+    .description = "plugin for proccess data",
+    .flags = PMCSCHED_CPUGROUP_LOCK,
+    //.sched_kthread_periodic=,
+    //.on_exec_thread = ,
+    .on_active_thread=on_active_thread_data,
+    .on_inactive_thread=on_inactive_thread_data,
+    //.on_fork_thread=,
+    .on_exit_thread=on_exit_thread_data,
+    //.on_migrate_thread=,
+
+};
