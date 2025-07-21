@@ -6269,7 +6269,9 @@ void __kmp_env_initialize(char const *string) {
   const char *raw_value_init_threads = __kmp_env_get("INITIAL_THREADS");
   if(raw_value_init_threads!=NULL){
      int parsed = __kmp_str_to_int(raw_value_init_threads,NULL);
-     __kmp_initial_threads = (parsed%__kmp_max_threads)+1;
+     __kmp_initial_threads = parsed;
+     if(__kmp_initial_threads>__kmp_max_threads)
+        __kmp_initial_threads =  __kmp_max_threads;
   }
   else{
     __kmp_initial_threads = __kmp_max_threads;
