@@ -2287,7 +2287,7 @@ static int __kmp_dispatch_next(ident_t *loc, int gtid, kmp_int32 *p_last,
       ST incr;
       T chunk = pr->u.p.parm1;
       #ifdef LIBOMP_MALLEABLE
-        int id = team->t.t_id;
+        int id = th->th.th_team->t.t_id;
         block_and_awake_threads(id);
       #endif
       KD_TRACE(100, ("__kmp_dispatch_next: T#%d kmp_sch_dynamic_chunked case\n",
