@@ -7776,6 +7776,7 @@ void __kmp_teams_master(int gtid) {
   kmp_team_t *team = thr->th.th_team;
   ident_t *loc = team->t.t_ident;
   thr->th.th_set_nproc = thr->th.th_teams_size.nth;
+  master_thread_schedctl=thr->th.schedctl_data;
   KMP_DEBUG_ASSERT(thr->th.th_teams_microtask);
   KMP_DEBUG_ASSERT(thr->th.th_set_nproc);
   KA_TRACE(20, ("__kmp_teams_master: T#%d, Tid %d, microtask %p\n", gtid,
@@ -9384,6 +9385,209 @@ void __kmp_set_nesting_mode_threads() {
   }
   if (__kmp_nesting_mode == 1) // turn on nesting for this case only
     set__max_active_levels(thread, __kmp_nesting_mode_nlevels);
+}
+/*
+* Funciones memoria compartida
+*/
+#ifndef PAGE_SIZE
+#define PAGE_SIZE 4096
+#endif
+#define SCHEDCTL_PROC_ENTRY "/proc/pmc/schedctl"
+
+schedctl_t* master_thread_schedctl=NULL;
+
+static int test_schedctl_support() {
+    /* Just make sure the proc entry exists. If it does, close it.*/
+    int fd = open(SCHEDCTL_PROC_ENTRY, O_RDWR);
+    if(fd < 0) {
+        return 0;
+    }
+    else {
+        close(fd);
+        return 1;
+    }
+}
+
+void schedctl_release(kmp_info_t* thr) {
+    if (thr->th.schedctl_data)
+        munmap(thr->th.schedctl_data, PAGE_SIZE);
+    if (thr->th.schedctl_fd!=-1)
+        close(thr->th.schedctl_fd);
+    else
+        free(thr->th.schedctl_data); //emulated version
+    /* Reset fields */
+    thr->th.schedctl_data=NULL;
+    thr->th.schedctl_fd=-1;
+}
+
+schedctl_t* schedctl_retrieve(kmp_info_t* thr) {
+    static int first_time=1;
+    static int schedctl_support=0;
+    int configfd;
+    schedctl_t *schedctl = NULL;
+    /* Reset fields ... */
+    thr->th.schedctl_fd=-1;
+    thr->th.schedctl_data=NULL;
+    if (first_time) {
+        schedctl_support=test_schedctl_support();
+        first_time=0;
+    }
+    if (schedctl_support) {
+        configfd = open(SCHEDCTL_PROC_ENTRY, O_RDWR);
+        if(configfd < 0) {
+            perror("open");
+            return NULL;
+        }
+        schedctl=(schedctl_t*)mmap(NULL, PAGE_SIZE, PROT_READ|PROT_WRITE,MAP_SHARED, configfd, 0);
+        if (schedctl == MAP_FAILED) {
+            perror("mmap");
+            return NULL;
+        }
+        /*
+        if (gomp_debug_var>=3) {
+            printf("Mmap Ok. Address:0x%p\n",schedctl);
+            printf("%d %d\n", schedctl->sc_nfc,schedctl->sc_sf);
+        }
+        */
+        if(gomp_malleable)
+            schedctl->sc_malleable=1;
+
+        schedctl->sc_num_threads= __kmp_initial_threads;
+    }
+    else{
+
+    }
+    thr->th.schedctl_data=schedctl;
+    thr->th.schedctl_fd=configfd;
+    return schedctl;
+  }
+/*
+* Funciones de maleabilidad
+*/
+#ifdef LIBOMP_MALLEABLE
+/*
+Malleability initialization function and signal handlers
+*/
+volatile int gomp_malleable = 1;
+pthread_mutex_t delegate_lock;
+pthread_mutex_t *mutex_work;
+pthread_cond_t *cond_work;
+#endif
+int __kmp_initial_threads;
+int __kmp_max_threads;
+struct sigaction sa1, sa2;
+volatile int sigusr_counter;
+void sigusr1_handler(int signums, siginfo_t *info, void *context) {
+  int ind = 0;
+  int target_threads = 0;
+  
+  // Checking malleability setup
+  if(gomp_malleable){
+   if(!master_thread_schedctl)
+       return;
+  // Set target
+  target_threads = master_thread_schedctl->sc_num_threads; // master_thread_schedctl->sc_num_threads;
+
+  // Checkear si el objetivo es demasiado alto y actualizar master thread
+  if (target_threads > __kmp_max_threads) {
+    target_threads = __kmp_max_threads;
+    master_thread_schedctl->sc_num_threads=target_threads;
+  }
+  // No se puede crecer o el objetivo es 0
+
+  if (target_threads == sigusr_counter || target_threads < 1)
+    return;
+
+   /* Wake threads up */
+  if (target_threads > sigusr_counter) {
+    printf("Intento de incrementar los hilos desde %d a %d\n",sigusr_counter,target_threads);
+    ind = sigusr_counter;
+    while (target_threads != sigusr_counter) {
+      /* wake up a blocked thread*/
+      if (!available[ind] && ind != delegate_id) {
+        available[ind] = 1;
+        sigusr_counter++;
+        pthread_cond_signal(&cond_work[ind]);
+        
+      }
+      ind = (ind + 1) % __kmp_max_threads;
+    }
+  }
+  else {
+    ind = sigusr_counter - 1;
+    while (ind < __kmp_max_threads &&
+           target_threads != sigusr_counter) {
+      /* request to block a thread */
+      if (available[ind] && ind != delegate_id) {
+        available[ind] = 0;
+        sigusr_counter--;
+      }
+      ind = (ind - 1) % 7;
+    }
+  }
+}
+else {
+  /* User-space control */
+  if (sigusr_counter == __kmp_max_threads) {
+      printf("No se puede crecer\n");
+  } else {
+    for (ind = 0; ind < 7; ind++) {
+      /* wake up a blocked thread*/
+      if (!available[ind] && ind != delegate_id) {
+        available[ind] = 1;
+        sigusr_counter++;
+        pthread_cond_signal(&cond_work[ind]);
+        printf("SIGUSR1: Hilo con TID:%d ha despertado\n",ind);
+        break;
+      }
+    }
+  }
+}
+printf("SIGUSR1: El conteo de hilos es %d\n",sigusr_counter);
+}
+
+void sigusr2_handler(int signum, siginfo_t *info, void *context) {
+  int ind = 0;
+  if (sigusr_counter == 1) {
+  } else {
+    for (ind = 0; ind < 7; ind++) {
+      /* sleep an active thread*/
+      if (available[ind] && ind != delegate_id) {
+        available[ind] = 0;
+        sigusr_counter--;
+        break;
+      }
+    }
+  }
+}
+int initialize_malleability_structures(void) {
+  int ind = 0;
+  //pid_t tid = gettid();
+  //printf("thread ID: %d\n",tid);
+  sa1.sa_sigaction = sigusr1_handler;
+  sigemptyset(&sa1.sa_mask);
+  sa1.sa_flags = SA_SIGINFO;
+  if (sigaction(SIGUSR1, &sa1, NULL) == -1) {
+    printf("Fallo al instalar el manejador de SIGUSR1");
+    return 1;
+  }
+  sa2.sa_sigaction = sigusr2_handler;
+  sigemptyset(&sa2.sa_mask);
+  sa2.sa_flags = SA_SIGINFO;
+  if (sigaction(SIGUSR2, &sa2, NULL) == -1) {
+    printf("Fallo al instalar el manejador de SIGUSR2");
+    return 1;
+  }
+  /* malleability: initialize conditional variables and mutexes */
+  mutex_work =
+      (pthread_mutex_t *)malloc(7 * sizeof(pthread_mutex_t));
+  cond_work = (pthread_cond_t *)malloc(7 * sizeof(pthread_cond_t));
+  for (ind = 0; ind < 7; ind++) {
+    pthread_mutex_init(&mutex_work[ind], NULL);
+    pthread_cond_init(&cond_work[ind], NULL);
+  }
+  pthread_mutex_init(&delegate_lock, NULL);
+  return 0;
 }
 
 // Empty symbols to export (see exports_so.txt) when feature is disabled
