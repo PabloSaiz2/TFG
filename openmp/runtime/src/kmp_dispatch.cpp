@@ -1263,7 +1263,9 @@ static void __kmp_dispatch_finish(int gtid, ident_t *loc) {
       pr->ordered_bumped = 0;
     } else {
       UT lower = pr->u.p.ordered_lower;
-    
+      #ifdef LIBOMP_MALLEABLE
+        final_wake_up();
+      #endif
       release_malleability();
 #ifdef KMP_DEBUG
       {
@@ -2256,6 +2258,15 @@ static int __kmp_dispatch_next(ident_t *loc, int gtid, kmp_int32 *p_last,
   __kmp_assert_valid_gtid(gtid);
   kmp_info_t *th = __kmp_threads[gtid];
   kmp_team_t *team = th->th.th_team;
+  #ifdef LIBOMP_MALLEABLE
+    if(th!=nullptr){
+        int id = th->th.th_info.ds.ds_tid;
+        if(id>=0){
+          printf("ID_Thread:%d\n",id);
+          block_and_awake_threads(id);
+        }
+    }
+  #endif
   printf("Hilos:%d\n",sigusr_counter);
   KMP_DEBUG_ASSERT(p_lb && p_ub && p_st); // AC: these cannot be NULL
   KD_TRACE(
@@ -2286,10 +2297,6 @@ static int __kmp_dispatch_next(ident_t *loc, int gtid, kmp_int32 *p_last,
       UT limit, trip, init;
       ST incr;
       T chunk = pr->u.p.parm1;
-      #ifdef LIBOMP_MALLEABLE
-        int id = th->th.th_team->t.t_id;
-        block_and_awake_threads(id);
-      #endif
       KD_TRACE(100, ("__kmp_dispatch_next: T#%d kmp_sch_dynamic_chunked case\n",
                      gtid));
 
@@ -2506,9 +2513,6 @@ static int __kmp_dispatch_next(ident_t *loc, int gtid, kmp_int32 *p_last,
   OMPT_LOOP_DISPATCH(*p_lb, *p_ub, pr->u.p.st, status);
   OMPT_LOOP_END;
   KMP_STATS_LOOP_END;
-  #ifdef LIBOMP_MALLEABLE
-    final_wake_up();
-  #endif
   return status;
 }
 
