@@ -2263,7 +2263,6 @@ static int __kmp_dispatch_next(ident_t *loc, int gtid, kmp_int32 *p_last,
     if(th!=nullptr){
         int id = th->th.th_info.ds.ds_tid;
         if(id>=0){
-          printf("ID_Thread:%d\n",id);
           block_and_awake_threads(id);
         }
     }

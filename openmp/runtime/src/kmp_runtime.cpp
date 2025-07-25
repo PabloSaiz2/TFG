@@ -473,7 +473,6 @@ void sigusr1_handler(int signums, siginfo_t *info, void *context) {
        return;
   // Set target
   target_threads = master_thread_schedctl->sc_num_threads; 
-  printf("Objetivo:%d\n",target_threads);
   // Checkear si el objetivo es demasiado alto y actualizar master thread
   if (target_threads > __kmp_max_threads) {
     target_threads = __kmp_max_threads;
@@ -2989,9 +2988,17 @@ void __kmp_join_call(ident_t *loc, int gtid
                     codeptr);
   }
 #endif
+  #ifdef LIBGOMP_MALLEABLE
+    if(gomp_malleable)
+      master_th->th.schedctl_data->sc_malleable=0;
 
+    schedctl_release(master_th);
+
+    master_thread_schedctl=NULL;
+  #endif
   KMP_MB();
   KA_TRACE(20, ("__kmp_join_call: exit T#%d\n", gtid));
+  
 }
 
 /* Check whether we should push an internal control record onto the
