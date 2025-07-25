@@ -6154,8 +6154,6 @@ void __kmp_env_initialize(char const *string) {
   else{
     __kmp_initial_threads = __kmp_max_threads;
   }
-
-  sigusr_counter = __kmp_initial_threads;
   if (initialize_malleability_structures())
     exit(1);
 #endif

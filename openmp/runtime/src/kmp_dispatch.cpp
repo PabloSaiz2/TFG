@@ -2258,6 +2258,7 @@ static int __kmp_dispatch_next(ident_t *loc, int gtid, kmp_int32 *p_last,
   __kmp_assert_valid_gtid(gtid);
   kmp_info_t *th = __kmp_threads[gtid];
   kmp_team_t *team = th->th.th_team;
+  printf("Hilos:%d\n",sigusr_counter);
   #ifdef LIBOMP_MALLEABLE
     if(th!=nullptr){
         int id = th->th.th_info.ds.ds_tid;
@@ -2267,7 +2268,6 @@ static int __kmp_dispatch_next(ident_t *loc, int gtid, kmp_int32 *p_last,
         }
     }
   #endif
-  printf("Hilos:%d\n",sigusr_counter);
   KMP_DEBUG_ASSERT(p_lb && p_ub && p_st); // AC: these cannot be NULL
   KD_TRACE(
       1000,
