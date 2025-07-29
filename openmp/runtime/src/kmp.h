@@ -2913,7 +2913,7 @@ typedef struct kmp_teams_size {
 /*
   Malleability elements
 */
-#define LIBOMP_MALLEABLE
+//#define LIBOMP_MALLEABLE
   
 
 #ifdef LIBOMP_MALLEABLE
@@ -2973,8 +2973,10 @@ typedef struct KMP_ALIGN_CACHE kmp_base_info {
   kmp_info_p *th_next_pool; /* next available thread in the pool */
   kmp_disp_t *th_dispatch; /* thread's dispatch data */
   int th_in_pool; /* in thread pool (32 bits for TCR/TCW) */
+  #ifdef LIBOMP_MALLEABLE
   schedctl_t* schedctl_data; //Memoria compartida
   int schedctl_fd; // Descriptor de fichero para la entrada del schedctl
+  #endif
   /* The following are cached from the team info structure */
   /* TODO use these in more places as determined to be needed via profiling */
   int th_team_nproc; /* number of threads in a team */

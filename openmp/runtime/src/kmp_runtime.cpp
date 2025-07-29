@@ -358,6 +358,7 @@ void __kmp_check_stack_overlap(kmp_info_t *th) {
   }
   KA_TRACE(10, ("__kmp_check_stack_overlap: returning\n"));
 }
+#ifdef LIBOMP_MALLEABLE
 /*
 * Funciones memoria compartida
 */
@@ -444,7 +445,7 @@ schedctl_t* schedctl_retrieve(kmp_info_t* thr) {
     thr->th.schedctl_fd=configfd;
     return schedctl;
   }
-
+#endif
 /* ------------------------------------------------------------------------ */
 
 /*
@@ -458,7 +459,7 @@ volatile int gomp_malleable = 1;
 pthread_mutex_t delegate_lock;
 pthread_mutex_t *mutex_work;
 pthread_cond_t *cond_work;
-#endif
+
 int __kmp_initial_threads;
 int __kmp_max_threads;
 struct sigaction sa1, sa2;
@@ -574,6 +575,7 @@ int initialize_malleability_structures(void) {
   pthread_mutex_init(&delegate_lock, NULL);
   return 0;
 }
+#endif
 /* ------------------------------------------------------------------------ */
 
 void __kmp_infinite_loop(void) {
@@ -2197,11 +2199,12 @@ int __kmp_fork_call(ident_t *loc, int gtid,
     task_thread_limit =
         master_th->th.th_current_task->td_icvs.task_thread_limit;
     //Poner aqui
-    
+   #ifdef LIBOMP_MALLEABLE 
  if(!schedctl_retrieve(master_th)){
     printf("Error al tratar de conseguir la memoria compartida. Desde __kmp_teams_master\n");
     exit(1);
   }
+  
   int tmp_counter = sigusr_counter = __kmp_initial_threads;
   master_thread_schedctl=master_th->th.schedctl_data;
   master_th->th.schedctl_data->sc_num_threads= __kmp_initial_threads;
@@ -2218,8 +2221,9 @@ int __kmp_fork_call(ident_t *loc, int gtid,
     }
     */
     master_th->th.schedctl_data->sc_malleable=1;
-
+    
   }
+  #endif
 #if OMPT_SUPPORT
     ompt_data_t ompt_parallel_data = ompt_data_none;
     ompt_data_t *parent_task_data = NULL;

@@ -34,6 +34,7 @@
 #if OMPT_SUPPORT
 #include "ompt-specific.h"
 #endif
+ #ifdef LIBOMP_MALLEABLE
 /*
  Variables y funciones de maleabilidad
 */
@@ -93,6 +94,7 @@ static void init_malleability(void){
 static void release_malleability(void){
   free((void*)available);
 }
+#endif
 /* ------------------------------------------------------------------------ */
 /* ------------------------------------------------------------------------ */
 
@@ -1027,8 +1029,10 @@ __kmp_dispatch_init(ident_t *loc, int gtid, enum sched_type schedule, T lb,
   kmp_uint32 my_buffer_index;
   dispatch_private_info_template<T> *pr;
   dispatch_shared_info_template<T> volatile *sh;
+  #ifdef LIBOMP_MALLEABLE
   // Malleability
   init_malleability();
+  #endif
   KMP_BUILD_ASSERT(sizeof(dispatch_private_info_template<T>) ==
                    sizeof(dispatch_private_info));
   KMP_BUILD_ASSERT(sizeof(dispatch_shared_info_template<UT>) ==
@@ -1265,8 +1269,9 @@ static void __kmp_dispatch_finish(int gtid, ident_t *loc) {
       UT lower = pr->u.p.ordered_lower;
       #ifdef LIBOMP_MALLEABLE
         final_wake_up();
+        release_malleability();
       #endif
-      release_malleability();
+      
 #ifdef KMP_DEBUG
       {
         char *buff;
@@ -2258,7 +2263,6 @@ static int __kmp_dispatch_next(ident_t *loc, int gtid, kmp_int32 *p_last,
   __kmp_assert_valid_gtid(gtid);
   kmp_info_t *th = __kmp_threads[gtid];
   kmp_team_t *team = th->th.th_team;
-  printf("Hilos:%d\n",sigusr_counter);
   #ifdef LIBOMP_MALLEABLE
     if(th!=nullptr){
         int id = th->th.th_info.ds.ds_tid;
